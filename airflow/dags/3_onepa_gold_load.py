@@ -28,7 +28,7 @@ def onepa_gold_load_pipeline():
         # Handle nan/null values before inserting
         df = df.where(pd.notnull(df), None)
         
-        hook = PostgresHook(postgres_conn_id='airflow_db')
+        hook = PostgresHook(postgres_conn_id='postgres_default')
         
         setup_sql = """
             CREATE SCHEMA IF NOT EXISTS medallion;

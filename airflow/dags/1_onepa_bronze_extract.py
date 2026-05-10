@@ -28,9 +28,18 @@ def onepa_bronze_extract_pipeline():
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
             "Referer": "https://www.onepa.gov.sg/",
-            "Origin": "https://www.onepa.gov.sg"
+            "Origin": "https://www.onepa.gov.sg",
+            "X-Requested-With": "XMLHttpRequest"
         }
         session.headers.update(headers)
+
+        # Make an initial request to the homepage to get any necessary cookies (like session/WAF cookies)
+        try:
+            print("Establishing session by visiting the homepage...")
+            session.get("https://www.onepa.gov.sg/", timeout=15)
+            time.sleep(2)
+        except Exception as e:
+            print(f"Warning: Could not load homepage: {e}")
 
         CATEGORIES = [ 
             "Active Ageing", "Arts & Culture", "Celebration & Festivity", "Charity & Volunteerism", 
@@ -110,9 +119,9 @@ def onepa_bronze_extract_pipeline():
                             ])
 
                     page += 1
-                    time.sleep(0.3)
+                    time.sleep(2)  # Increased sleep time to prevent rate limiting (403 Forbidden)
                 except Exception as e:
-                    print(f"Error skipping page: {e}")
+                    print(f"Error on page {page}: {e}")
                     break
 
         # Execute Master Scrape
@@ -120,8 +129,13 @@ def onepa_bronze_extract_pipeline():
             print(f"\n=== PERIOD: {period.upper()} ===")
             for cat in CATEGORIES:
                 scrape_data(cat, is_category=True, period=period)
+                time.sleep(1)
             for kw in KEYWORDS:
                 scrape_data(kw, is_category=False, period=period)
+                time.sleep(1)
+
+        if len(seen_ids) == 0:
+            raise Exception("Failed to extract any data! All requests might have been blocked (403 Forbidden).")
 
         file_path = os.path.join(OUTPUT_FOLDER, "onepa_bronze.xlsx")
         wb.save(file_path)
