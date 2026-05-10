@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# Airflow
+airflow/logs/
+airflow/airflow.db
+
+# Environment Variables
+.env
+
+# Docker
+postgres/data/
+
+# Mac/Linux
+.DS_Store
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
