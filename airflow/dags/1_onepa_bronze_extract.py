@@ -2,13 +2,12 @@ from datetime import datetime
 import os
 import requests
 import time
-from openpyxl import Workbook
-# pyrefly: ignore [missing-import]
 from airflow.decorators import dag, task
-from airflow import Dataset
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.datasets import Dataset
 
 # Dataset definition for triggering downstream DAGs
-onepa_bronze_dataset = Dataset("file:///opt/airflow/data/transform/onepa_bronze.xlsx")
+onepa_bronze_dataset = Dataset("postgres://raw.onepa_bronze")
 
 @dag(
     dag_id='1_onepa_bronze_extract',
@@ -21,7 +20,7 @@ onepa_bronze_dataset = Dataset("file:///opt/airflow/data/transform/onepa_bronze.
 def onepa_bronze_extract_pipeline():
 
     @task(outlets=[onepa_bronze_dataset])
-    def scrape_onepa_to_bronze():
+    def extract_and_load_raw():
         # Setup session
         session = requests.Session()
         headers = {
@@ -57,18 +56,8 @@ def onepa_bronze_extract_pipeline():
         TIME_PERIODS = ["this-month", "next-month"]
         BASE_URL = "https://www.onepa.gov.sg/pacesapi/eventsearch/searchjson"
         
-        # Save output into the Airflow container's data folder
-        OUTPUT_FOLDER = "/opt/airflow/data/transform"
-        if not os.path.exists(OUTPUT_FOLDER):
-            os.makedirs(OUTPUT_FOLDER)
-
-        wb = Workbook()
-        ws = wb.active
-        # Updated Headers to include all requested fields
-        ws.append([
-            "Event ID", "Title", "URL", "Outlet", "Start Date", 
-            "Session Time", "Registration Open", "Min Price", "Max Price", "Source"
-        ])
+        seen_ids = set()
+        events_data = []
 
         seen_ids = set()
 
@@ -105,7 +94,7 @@ def onepa_bronze_extract_pipeline():
                             product_url = item.get("productUrl")
                             final_url = share_url if share_url else f"https://www.onepa.gov.sg{product_url}"
                             
-                            ws.append([
+                            events_data.append((
                                 event_id,
                                 title,
                                 final_url,
@@ -116,7 +105,7 @@ def onepa_bronze_extract_pipeline():
                                 item.get("minPrice"),
                                 item.get("maxPrice"),
                                 f"{search_val} ({period})"
-                            ])
+                            ))
 
                     page += 1
                     time.sleep(2)  # Increased sleep time to prevent rate limiting (403 Forbidden)
@@ -137,10 +126,39 @@ def onepa_bronze_extract_pipeline():
         if len(seen_ids) == 0:
             raise Exception("Failed to extract any data! All requests might have been blocked (403 Forbidden).")
 
-        file_path = os.path.join(OUTPUT_FOLDER, "onepa_bronze.xlsx")
-        wb.save(file_path)
-        print(f"\nExtraction Complete! Total Unique Events saved to {file_path}: {len(seen_ids)}")
+        hook = PostgresHook(postgres_conn_id='postgres_default')
+        setup_sql = """
+            CREATE SCHEMA IF NOT EXISTS raw;
+            CREATE TABLE IF NOT EXISTS raw.onepa_bronze (
+                event_id VARCHAR(50) PRIMARY KEY,
+                title TEXT,
+                url TEXT,
+                outlet TEXT,
+                start_date TEXT,
+                session_time TEXT,
+                registration_open BOOLEAN,
+                min_price DECIMAL(10, 2),
+                max_price DECIMAL(10, 2),
+                source TEXT
+            );
+            TRUNCATE TABLE raw.onepa_bronze;
+        """
+        hook.run(setup_sql)
 
-    scrape_onepa_to_bronze()
+        insert_sql = """
+            INSERT INTO raw.onepa_bronze 
+            (event_id, title, url, outlet, start_date, session_time, registration_open, min_price, max_price, source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (event_id) DO NOTHING;
+        """
+        
+        conn = hook.get_conn()
+        cursor = conn.cursor()
+        cursor.executemany(insert_sql, events_data)
+        conn.commit()
+
+        print(f"\nExtraction Complete! Total Unique Events saved to raw.onepa_bronze: {len(events_data)}")
+
+    extract_and_load_raw()
 
 dag1 = onepa_bronze_extract_pipeline()

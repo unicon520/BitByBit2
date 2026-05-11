@@ -2,6 +2,10 @@
 # E.g.
 # pandas==2.0.3
 # apache-airflow-providers-postgres==5.10.0
+apache-airflow==2.8.1
 apache-airflow-providers-postgres
 pandas
 openpyxl
+dbt-postgres
+astronomer-cosmos
+sentence-transformers

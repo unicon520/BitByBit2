@@ -30,3 +30,6 @@ INSERT INTO sample_data.raw_orders (customer_name, product_name, quantity, price
     ('Charlie Brown', 'Keyboard', 1, 75.00),
     ('Diana Prince', 'Monitor', 2, 300.00),
     ('Evan Wright', 'Desk Chair', 1, 150.00);
+
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
