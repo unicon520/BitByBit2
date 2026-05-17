@@ -57,7 +57,7 @@ services:
       - ./airflow/plugins:/opt/airflow/plugins
       - ./data:/opt/airflow/data
     entrypoint: >
-      bash -c " mkdir -p /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/data && chown -R \"$${AIRFLOW_UID}:0\" /opt/airflow/{logs,dags,plugins,data} && exec /entrypoint airflow version "
+      bash -c " mkdir -p /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/data && chown -R \"$${AIRFLOW_UID}:0\" /opt/airflow/{logs,dags,plugins,data} && exec su -s /bin/bash airflow -c '/entrypoint airflow version' "
 
   airflow-webserver:
     <<: *airflow-common
