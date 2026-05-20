@@ -9,3 +9,7 @@ openpyxl
 dbt-postgres
 astronomer-cosmos
 sentence-transformers
+beautifulsoup4
+supabase
+postgrest
+

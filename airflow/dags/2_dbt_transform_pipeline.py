@@ -31,6 +31,10 @@ with DAG(
     description="Runs dbt transformations and vector embeddings using cosmos"
 ) as dag:
 
+    from airflow.operators.empty import EmptyOperator
+
+    onepa_marts_dataset = Dataset("postgres://onepa_events.marts_onepa_events")
+
     transformations = DbtTaskGroup(
         group_id="dbt_transformations",
         project_config=ProjectConfig(DBT_PROJECT_PATH),
@@ -38,4 +42,10 @@ with DAG(
         execution_config=ExecutionConfig(dbt_executable_path="dbt"),
     )
 
-    transformations
+    post_dbt = EmptyOperator(
+        task_id="post_dbt",
+        outlets=[onepa_marts_dataset]
+    )
+
+    transformations >> post_dbt
+

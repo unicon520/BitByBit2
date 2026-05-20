@@ -14,6 +14,10 @@ x-airflow-common: &airflow-common
     _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
     _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
     AIRFLOW_CONN_POSTGRES_DEFAULT: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    SUPABASE_URL: ${SUPABASE_URL:-${SUPABASE_DATABASE_URL:-}}
+    SUPABASE_KEY: ${SUPABASE_KEY:-}
+
+
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
