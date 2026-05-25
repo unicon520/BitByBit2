@@ -16,6 +16,9 @@ x-airflow-common: &airflow-common
     AIRFLOW_CONN_POSTGRES_DEFAULT: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     SUPABASE_URL: ${SUPABASE_URL:-${SUPABASE_DATABASE_URL:-}}
     SUPABASE_KEY: ${SUPABASE_KEY:-}
+    TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+    TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+    TELEGRAM_STRING_SESSION: ${TELEGRAM_STRING_SESSION:-}
 
 
   volumes:
@@ -86,6 +89,16 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  telegram-live-listener:
+    <<: *airflow-common
+    entrypoint: ["/usr/bin/dumb-init", "--"]
+    command: python /opt/airflow/dags/telegram_live_listener.py
     restart: always
     depends_on:
       <<: *airflow-common-depends-on

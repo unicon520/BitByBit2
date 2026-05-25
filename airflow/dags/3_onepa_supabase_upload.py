@@ -48,12 +48,28 @@ def onepa_supabase_upload_pipeline():
             logger.warning("No events found in local Postgres. Nothing to process.")
             return
 
-        # 3. Scrape Telegram public channel (robustly wrapped in try-except)
+        # 3. Scrape Telegram public channels (robustly wrapped in try-except)
+        channels = [
+            "TNEvents",
+            "tampgreenridges",
+            "othsports",
+            "otharts",
+            "othcommunity",
+            "othlifestyle",
+            "tampcentral",
+            "tampeastcc",
+            "tampinescentralcsc",
+            "tampinesvista"
+        ]
         telegram_messages = []
-        try:
-            telegram_messages = scrape_telegram_channel("othcommunity")
-        except Exception as e:
-            logger.error(f"Critical error during Telegram scraping: {e}. Proceeding with empty Telegram messages.")
+        for channel in channels:
+            try:
+                logger.info(f"Scraping Telegram channel '{channel}'...")
+                msgs = scrape_telegram_channel(channel)
+                logger.info(f"Scraped {len(msgs)} messages from '{channel}'.")
+                telegram_messages.extend(msgs)
+            except Exception as e:
+                logger.error(f"Error scraping Telegram channel '{channel}': {e}")
 
         # 4. Merge Telegram messages/images and download matching images (robustly wrapped in try-except)
         merged_data = []
@@ -63,11 +79,11 @@ def onepa_supabase_upload_pipeline():
             logger.info(f"Successfully matched and merged {len(merged_data)} events.")
         except Exception as e:
             logger.error(f"Critical error during merging or image download: {e}. Falling back to raw OnePA events.")
-            # Fallback: Populate missing columns with None to preserve schema
+            # Fallback: Populate missing columns with default/empty list to preserve schema stability
             for event in events:
                 event_copy = dict(event)
-                event_copy['telegram_image_url'] = None
-                event_copy['telegram_image_local_path'] = None
+                event_copy['telegram_image_urls'] = []
+                event_copy['telegram_image_local_paths'] = []
                 event_copy['telegram_message_text'] = None
                 merged_data.append(event_copy)
 

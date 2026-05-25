@@ -12,4 +12,4 @@ sentence-transformers
 beautifulsoup4
 supabase
 postgrest
-
+telethon
